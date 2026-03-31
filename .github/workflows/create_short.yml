@@ -1,0 +1,60 @@
+name: Create YouTube Short
+
+on:
+  repository_dispatch:
+    types: [create-short]
+  
+  workflow_dispatch:
+    inputs:
+      script_text:
+        description: 'Hinglish script text'
+        required: true
+        default: 'Aaj ki sabse badi AI news ye hai'
+      video_title:
+        description: 'Video title'
+        required: true
+        default: 'AI News Today'
+      search_query:
+        description: 'Search query for stock videos'
+        required: true
+        default: 'artificial intelligence'
+
+jobs:
+  create-short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          sudo sed -i 's/rights="none" pattern="@\*"/rights="read|write" pattern="@*"/' /etc/ImageMagick-6/policy.xml || true
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Run the script
+        env:
+          SCRIPT_TEXT: ${{ github.event.client_payload.script_text || github.event.inputs.script_text }}
+          VIDEO_TITLE: ${{ github.event.client_payload.video_title || github.event.inputs.video_title }}
+          SEARCH_QUERY: ${{ github.event.client_payload.search_query || github.event.inputs.search_query }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
+        run: python create_short.py
+
+      - name: Save video as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-short-${{ github.run_number }}
+          path: final_short.mp4
+          retention-days: 3
